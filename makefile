@@ -20,7 +20,7 @@ else
 endif
 
 # 源文件
-SOURCES = 2.timer.cpp 3.memory.cpp
+SOURCES = 2.timer.cpp 3.memory.cpp shared_memory.cpp
 TARGETS = $(SOURCES:.cpp=)
 
 # 颜色输出
