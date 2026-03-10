@@ -1,0 +1,41 @@
+stages:
+  - prepare  # 构建镜像
+  - build    # 编译内核
+
+variables:
+  # GitLab 内置的镜像仓库地址
+  BUILDER_IMAGE: $CI_REGISTRY_IMAGE/kernel-builder:latest
+
+# --- 第一阶段：构建并推送 Docker 镜像 ---
+build-builder-image:
+  stage: prepare
+  image: docker:28.4.0
+  services:
+    - docker:28.4.0-dind
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - |
+      # 检查镜像是否已存在，如果不存在或 Dockerfile 变化则构建
+      docker pull $BUILDER_IMAGE || true
+      docker build --cache-from $BUILDER_IMAGE -t $BUILDER_IMAGE .
+      docker push $BUILDER_IMAGE
+  rules:
+    # 只有在 Dockerfile 文件发生变化时才运行，节省时间
+    - changes:
+        - Dockerfile
+
+# --- 第二阶段：使用生成的镜像编译内核 ---
+kernel-compile:
+  stage: build
+  image: $BUILDER_IMAGE
+  variables:
+    MAKE_FLAGS: "-j$(nproc)"
+  script:
+    - echo "正在使用 GitLab 仓库中的镜像编译内核..."
+    - make all
+  artifacts:
+    paths:
+      - ./
+    expire_in: 1 day
+  dependencies:
+    - build-builder-image
